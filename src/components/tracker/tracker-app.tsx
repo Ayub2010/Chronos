@@ -29,8 +29,9 @@ import {
   KIND_LABEL,
   createCategoryId,
 } from "@/lib/categories";
-import { createClient } from "@/lib/supabase/client";
+import { getFirebaseAuth, getFirebaseDb } from "@/lib/firebase/client";
 import {
+  deleteRemoteState,
   fetchRemoteState,
   mergeState,
   pushState,
@@ -68,7 +69,8 @@ function ensureDay(days: DaysMap, key: string): DaysMap {
 
 export function TrackerApp({ email, demo }: Props) {
   const router = useRouter();
-  const supabase = useMemo(() => createClient(), []);
+  const db = useMemo(() => getFirebaseDb(), []);
+  const auth = useMemo(() => getFirebaseAuth(), []);
   const [dateKey, setDateKey] = useState(localDateKey);
   const [mode, setMode] = useState<TimelineMode>("actual");
   const [brush, setBrush] = useState<string | null>(DEFAULT_CATEGORIES[1].id);
@@ -92,11 +94,11 @@ export function TrackerApp({ email, demo }: Props) {
 
   /** Read-merge-write against the cloud copy, then persist the merged result. */
   const syncNow = useCallback(async () => {
-    if (!supabase || demo || !userId) return;
+    if (!db || demo || !userId) return;
     setSync("saving");
     try {
       const before = readLocal();
-      const remote = await fetchRemoteState(supabase, userId);
+      const remote = await fetchRemoteState(db, userId);
       const merged = mergeState(before, remote);
       const changed =
         JSON.stringify(merged.days) !== JSON.stringify(before.days) ||
@@ -105,7 +107,7 @@ export function TrackerApp({ email, demo }: Props) {
         setDays(merged.days);
         setCats(merged.cats);
       }
-      await pushState(supabase, userId, merged);
+      await pushState(db, userId, merged);
       if (merged.catsDirty) {
         catsDirty.current = false;
         writeLocal({ ...merged, catsDirty: false });
@@ -114,7 +116,7 @@ export function TrackerApp({ email, demo }: Props) {
     } catch {
       setSync("error");
     }
-  }, [demo, supabase, userId]);
+  }, [demo, db, userId]);
 
   const persist = useCallback(
     (nextDays: DaysMap, nextCats: Category[]) => {
@@ -123,7 +125,7 @@ export function TrackerApp({ email, demo }: Props) {
         cats: nextCats,
         catsDirty: catsDirty.current,
       });
-      if (!supabase || demo || !userId) {
+      if (!db || demo || !userId) {
         setSync("saved");
         return;
       }
@@ -134,7 +136,7 @@ export function TrackerApp({ email, demo }: Props) {
         void syncNow();
       }, SAVE_DEBOUNCE_MS);
     },
-    [demo, supabase, userId, syncNow],
+    [demo, db, userId, syncNow],
   );
 
   // Load local state, then the cloud copy, before the grid becomes interactive.
@@ -145,15 +147,14 @@ export function TrackerApp({ email, demo }: Props) {
       let state = local;
       let signedInId: string | null = null;
       let failed = false;
-      if (supabase && !demo) {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+      if (db && auth && !demo) {
+        await auth.authStateReady();
+        const user = auth.currentUser;
         if (cancelled) return;
         if (user) {
-          signedInId = user.id;
+          signedInId = user.uid;
           try {
-            const remote = await fetchRemoteState(supabase, user.id);
+            const remote = await fetchRemoteState(db, user.uid);
             state = mergeState(local, remote);
           } catch {
             failed = true;
@@ -173,7 +174,7 @@ export function TrackerApp({ email, demo }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [demo, supabase]);
+  }, [demo, db, auth]);
 
   useEffect(() => {
     if (!ready) return;
@@ -263,7 +264,7 @@ export function TrackerApp({ email, demo }: Props) {
       router.refresh();
       return;
     }
-    await supabase?.auth.signOut();
+    await auth?.signOut();
     router.push("/");
     router.refresh();
   };
@@ -316,15 +317,13 @@ export function TrackerApp({ email, demo }: Props) {
     ) {
       return;
     }
-    if (supabase && !demo && userId) {
+    if (db && !demo && userId) {
       setSync("saving");
       if (saveTimer.current) window.clearTimeout(saveTimer.current);
       saveTimer.current = null;
-      const { error } = await supabase
-        .from("chronos_state")
-        .delete()
-        .eq("user_id", userId);
-      if (error) {
+      try {
+        await deleteRemoteState(db, userId);
+      } catch {
         setSync("error");
         return;
       }

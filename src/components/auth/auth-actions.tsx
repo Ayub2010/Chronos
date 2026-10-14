@@ -1,30 +1,43 @@
 "use client";
 
-import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  GoogleAuthProvider,
+  onAuthStateChanged,
+  signInWithPopup,
+} from "firebase/auth";
+import { getFirebaseAuth } from "@/lib/firebase/client";
 
 export function AuthActions({ configured }: { configured: boolean }) {
+  const router = useRouter();
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
+  useEffect(() => {
+    const auth = getFirebaseAuth();
+    if (!auth) return;
+    return onAuthStateChanged(auth, (user) => {
+      if (user) router.replace("/app");
+    });
+  }, [router]);
+
   const signInGoogle = async () => {
     setMessage(null);
-    const supabase = createClient();
-    if (!supabase) {
-      setMessage("Add NEXT_PUBLIC_SUPABASE_URL and anon key to enable Google.");
+    const auth = getFirebaseAuth();
+    if (!auth) {
+      setMessage("Add the NEXT_PUBLIC_FIREBASE_* variables to enable Google.");
       return;
     }
     setPending(true);
-    const origin = window.location.origin;
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${origin}/auth/callback?next=/app`,
-      },
-    });
-    if (error) {
+    try {
+      await signInWithPopup(auth, new GoogleAuthProvider());
+      router.replace("/app");
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "Google sign-in failed.",
+      );
       setPending(false);
-      setMessage(error.message);
     }
   };
 
@@ -50,17 +63,13 @@ export function AuthActions({ configured }: { configured: boolean }) {
       </form>
       {!configured ? (
         <p className="text-xs leading-5 text-muted">
-          Google OAuth needs a Supabase project. Add{" "}
+          Google sign-in needs a Firebase project. Add the{" "}
           <span className="font-mono text-foreground">
-            NEXT_PUBLIC_SUPABASE_URL
+            NEXT_PUBLIC_FIREBASE_*
           </span>{" "}
-          and{" "}
-          <span className="font-mono text-foreground">
-            NEXT_PUBLIC_SUPABASE_ANON_KEY
-          </span>{" "}
-          to <span className="font-mono">.env.local</span>, enable Google in
-          Auth providers, and allow{" "}
-          <span className="font-mono">/auth/callback</span>.
+          variables to <span className="font-mono">.env.local</span>, enable
+          Google under Authentication → Sign-in method, and authorize
+          localhost.
         </p>
       ) : null}
       {message ? <p className="text-xs text-red-300">{message}</p> : null}

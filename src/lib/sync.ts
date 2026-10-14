@@ -1,10 +1,17 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  deleteDoc,
+  doc,
+  getDoc,
+  setDoc,
+  type Firestore,
+} from "firebase/firestore";
 import { DEFAULT_CATEGORIES } from "./categories";
 import { normalizeBlocks } from "./time";
 import type { Category, DaySlice, DaysMap } from "./types";
 
 export const STORAGE_KEY = "chronos-state-v1";
 
+const COLLECTION = "chronos_state";
 const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/;
 const KINDS = new Set<string>(["productive", "neutral", "friction"]);
 
@@ -17,7 +24,7 @@ export type LocalState = {
 
 export type RemoteState = {
   days: DaysMap;
-  /** Empty when the cloud row has no categories yet. */
+  /** Empty when the cloud document has no categories yet. */
   cats: Category[];
 };
 
@@ -128,16 +135,12 @@ export function mergeState(local: LocalState, remote: RemoteState | null): Local
 }
 
 export async function fetchRemoteState(
-  supabase: SupabaseClient,
+  db: Firestore,
   userId: string,
 ): Promise<RemoteState | null> {
-  const { data, error } = await supabase
-    .from("chronos_state")
-    .select("days, cats")
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (error) throw error;
-  if (!data) return null;
+  const snapshot = await getDoc(doc(db, COLLECTION, userId));
+  if (!snapshot.exists()) return null;
+  const data = snapshot.data();
   return {
     days: normalizeDays(data.days),
     cats: normalizeCats(data.cats) ?? [],
@@ -145,15 +148,21 @@ export async function fetchRemoteState(
 }
 
 export async function pushState(
-  supabase: SupabaseClient,
+  db: Firestore,
   userId: string,
   state: LocalState,
 ): Promise<void> {
-  const { error } = await supabase.from("chronos_state").upsert({
-    user_id: userId,
-    days: state.days,
+  // normalizeDays drops undefined timestamps, which Firestore rejects.
+  await setDoc(doc(db, COLLECTION, userId), {
+    days: normalizeDays(state.days),
     cats: state.cats,
-    updated_at: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   });
-  if (error) throw error;
+}
+
+export async function deleteRemoteState(
+  db: Firestore,
+  userId: string,
+): Promise<void> {
+  await deleteDoc(doc(db, COLLECTION, userId));
 }
