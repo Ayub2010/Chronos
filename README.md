@@ -28,5 +28,3 @@ Row-level security allows each user to select, insert, update, and delete only t
 `productive hours / (productive hours + friction hours) × 100%`
 
 Neutral categories (sleep, meals, downtime) are excluded.
-# Chronos
-# Chronos
