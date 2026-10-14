@@ -29,3 +29,4 @@ Row-level security allows each user to select, insert, update, and delete only t
 
 Neutral categories (sleep, meals, downtime) are excluded.
 # Chronos
+# Chronos
