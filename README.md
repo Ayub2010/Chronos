@@ -28,6 +28,14 @@ Sync stores one document per user at `chronos_state/{uid}`. The rules allow each
 
 Firebase web config values are public identifiers; access control comes from the security rules.
 
+## Deploy to Netlify
+
+The site is a static export (`output: "export"`) and is hosted on Netlify. Firebase is still used for Google sign-in and Firestore; only hosting moved.
+
+1. Import this repo in Netlify. `netlify.toml` sets the build command (`npm run build`), publish directory (`out`), and Node 22.
+2. Site configuration → Environment variables: add `NEXT_PUBLIC_FIREBASE_API_KEY`, `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, and `NEXT_PUBLIC_FIREBASE_APP_ID`. These are baked in at build time, so redeploy after changing them.
+3. Firebase console → Authentication → Settings → Authorized domains: add your Netlify domain (`*.netlify.app` URL or custom domain).
+
 ## Efficiency score
 
 `productive hours / (productive hours + friction hours) × 100%`

@@ -53,7 +53,7 @@ const FAQS = [
   },
   {
     q: "Is my data private?",
-    a: "Each account stores one row that is served over HTTPS and protected by row-level security, so other users cannot read or write your days or categories. The demo mode keeps everything on this device.",
+    a: "Each account stores one row that is served over HTTPS and protected by row-level security, so other users cannot read or write your days or categories.",
   },
 ];
 

@@ -52,15 +52,6 @@ export function AuthActions({ configured }: { configured: boolean }) {
         <GoogleMark />
         Continue with Google
       </button>
-      <form action="/auth/demo" method="post">
-        <button
-          type="submit"
-          disabled={pending}
-          className="flex h-12 w-full items-center justify-center rounded-xl bg-foreground text-sm font-medium text-background transition-opacity hover:opacity-90"
-        >
-          Continue on this device
-        </button>
-      </form>
       {!configured ? (
         <p className="text-xs leading-5 text-muted">
           Google sign-in needs a Firebase project. Add the{" "}

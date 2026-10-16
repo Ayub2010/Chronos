@@ -6,12 +6,11 @@ import { onAuthStateChanged, type User } from "firebase/auth";
 import { TrackerApp } from "@/components/tracker/tracker-app";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 
-export function AppGate({ demo }: { demo: boolean }) {
+export function AppGate() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    if (demo) return;
     const auth = getFirebaseAuth();
     if (!auth) {
       router.replace("/auth");
@@ -24,9 +23,7 @@ export function AppGate({ demo }: { demo: boolean }) {
       }
       setUser(current);
     });
-  }, [demo, router]);
-
-  if (demo) return <TrackerApp email={null} demo />;
+  }, [router]);
 
   if (!user) {
     return (

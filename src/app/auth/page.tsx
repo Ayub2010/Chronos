@@ -1,16 +1,9 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
 import { Brand } from "@/components/brand";
 import { AuthActions } from "@/components/auth/auth-actions";
 import { isFirebaseConfigured } from "@/lib/firebase/client";
 
-export default async function AuthPage() {
-  const jar = await cookies();
-  if (jar.get("chronos-demo")?.value === "1") {
-    redirect("/app");
-  }
-
+export default function AuthPage() {
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-background px-4">
       <div className="pointer-events-none absolute inset-0 grid-fine opacity-30" />

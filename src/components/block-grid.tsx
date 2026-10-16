@@ -101,48 +101,47 @@ export function BlockGrid({
                 const id = blocks[index];
                 const cat = categoryById(cats, id);
                 return (
-                  <button
-                    key={index}
-                    type="button"
-                    data-block-index={index}
-                    className={`block-cell group relative w-full overflow-hidden rounded-md border transition-transform duration-150 ${
-                      compact ? "h-4 md:h-5" : "h-7 md:h-9"
-                    } ${
-                      cat
-                        ? "border-transparent shadow-[inset_0_0_0_1px_rgba(0,0,0,0.25)]"
-                        : "border-border bg-surface hover:border-zinc-500/60"
-                    } ${interactive ? "cursor-crosshair active:scale-[0.97]" : ""}`}
-                    style={cat ? { backgroundColor: cat.color } : undefined}
-                    aria-label={`${blockRangeLabel(index)}${cat ? `, ${cat.name}` : ", empty"}`}
-                    onKeyDown={(event) => {
-                      if (!interactive) return;
-                      const moves: Record<string, number> = {
-                        ArrowDown: 1,
-                        ArrowUp: -1,
-                        ArrowRight: 2,
-                        ArrowLeft: -2,
-                      };
-                      if (event.key === "Enter" || event.key === " ") {
+                  <div key={index} className="group relative min-w-0">
+                    <button
+                      type="button"
+                      data-block-index={index}
+                      className={`block-cell relative w-full overflow-hidden rounded-md border transition-transform duration-150 ${
+                        compact ? "h-4 md:h-5" : "h-7 md:h-9"
+                      } ${
+                        cat
+                          ? "border-transparent shadow-[inset_0_0_0_1px_rgba(0,0,0,0.25)]"
+                          : "border-border bg-surface hover:border-zinc-500/60"
+                      } ${interactive ? "cursor-crosshair active:scale-[0.97]" : ""}`}
+                      style={cat ? { backgroundColor: cat.color } : undefined}
+                      aria-label={`${blockRangeLabel(index)}${cat ? `, ${cat.name}` : ", empty"}`}
+                      onKeyDown={(event) => {
+                        if (!interactive) return;
+                        const moves: Record<string, number> = {
+                          ArrowDown: 1,
+                          ArrowUp: -1,
+                          ArrowRight: 2,
+                          ArrowLeft: -2,
+                        };
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          onPaint?.(index);
+                          return;
+                        }
+                        const step = moves[event.key];
+                        if (step === undefined) return;
                         event.preventDefault();
-                        onPaint?.(index);
-                        return;
-                      }
-                      const step = moves[event.key];
-                      if (step === undefined) return;
-                      event.preventDefault();
-                      const target = index + step;
-                      if (target < 0 || target >= blocks.length) return;
-                      event.currentTarget
-                        .closest<HTMLElement>("[data-grid]")
-                        ?.querySelector<HTMLElement>(`[data-block-index="${target}"]`)
-                        ?.focus();
-                    }}
-                  >
-                    <span className="pointer-events-none absolute bottom-[calc(100%+6px)] left-1/2 z-20 hidden -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-card px-2 py-1 font-mono text-[10px] text-foreground shadow-xl group-hover:block">
+                        const target = index + step;
+                        if (target < 0 || target >= blocks.length) return;
+                        event.currentTarget
+                          .closest<HTMLElement>("[data-grid]")
+                          ?.querySelector<HTMLElement>(`[data-block-index="${target}"]`)
+                          ?.focus();
+                      }}
+                    />
+                    <span className={`pointer-events-none absolute bottom-[calc(100%+6px)] ${tooltipPosition(index)} z-20 hidden whitespace-nowrap rounded-md border border-border bg-card px-2 py-1 font-mono text-[10px] text-foreground shadow-xl group-hover:block group-focus-within:block`}>
                       {blockRangeLabel(index)}
-                      {cat ? ` · ${cat.icon} ${cat.name}` : " · empty"}
                     </span>
-                  </button>
+                  </div>
                 );
               })}
             </div>
@@ -151,6 +150,15 @@ export function BlockGrid({
       </div>
     </div>
   );
+}
+
+// Tooltips stay centered over their cell, except in the first and last hour
+// columns, which anchor to the cell's edge so they don't run off-screen.
+function tooltipPosition(index: number): string {
+  const hour = Math.floor(index / 2);
+  if (hour === 0) return "left-0";
+  if (hour === 23) return "right-0";
+  return "left-1/2 -translate-x-1/2";
 }
 
 function CompareCell({
@@ -171,38 +179,39 @@ function CompareCell({
   const match = plannedId === actualId;
 
   return (
-    <div
-      data-block-index={index}
-      className={`group relative overflow-hidden rounded-md border ${
-        compact ? "h-4 md:h-5" : "h-7 md:h-9"
-      } ${match ? "border-transparent" : "border-amber-400/40"}`}
-    >
-      {match ? (
-        <div
-          className="h-full w-full"
-          style={{
-            backgroundColor: actual?.color ?? "transparent",
-            backgroundImage: actual
-              ? undefined
-              : "linear-gradient(135deg, var(--border) 25%, transparent 25%, transparent 50%, var(--border) 50%, var(--border) 75%, transparent 75%)",
-            backgroundSize: actual ? undefined : "6px 6px",
-          }}
-        />
-      ) : (
-        <div className="flex h-full w-full">
+    <div className="group relative" data-block-index={index}>
+      <div
+        className={`relative overflow-hidden rounded-md border ${
+          compact ? "h-4 md:h-5" : "h-7 md:h-9"
+        } ${match ? "border-transparent" : "border-amber-400/40"}`}
+      >
+        {match ? (
           <div
-            className="h-full w-1/2"
-            style={{ backgroundColor: planned?.color ?? "var(--border)" }}
-            title="Planned"
+            className="h-full w-full"
+            style={{
+              backgroundColor: actual?.color ?? "transparent",
+              backgroundImage: actual
+                ? undefined
+                : "linear-gradient(135deg, var(--border) 25%, transparent 25%, transparent 50%, var(--border) 50%, var(--border) 75%, transparent 75%)",
+              backgroundSize: actual ? undefined : "6px 6px",
+            }}
           />
-          <div
-            className="h-full w-1/2"
-            style={{ backgroundColor: actual?.color ?? "var(--border)" }}
-            title="Actual"
-          />
-        </div>
-      )}
-      <span className="pointer-events-none absolute bottom-[calc(100%+6px)] left-1/2 z-20 hidden -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-card px-2 py-1 font-mono text-[10px] text-foreground shadow-xl group-hover:block">
+        ) : (
+          <div className="flex h-full w-full">
+            <div
+              className="h-full w-1/2"
+              style={{ backgroundColor: planned?.color ?? "var(--border)" }}
+              title="Planned"
+            />
+            <div
+              className="h-full w-1/2"
+              style={{ backgroundColor: actual?.color ?? "var(--border)" }}
+              title="Actual"
+            />
+          </div>
+        )}
+      </div>
+      <span className={`pointer-events-none absolute bottom-[calc(100%+6px)] ${tooltipPosition(index)} z-20 hidden whitespace-nowrap rounded-md border border-border bg-card px-2 py-1 font-mono text-[10px] text-foreground shadow-xl group-hover:block`}>
         {blockRangeLabel(index)} · {match ? "aligned" : "drift"}
       </span>
     </div>
